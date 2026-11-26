@@ -35,6 +35,7 @@ Every push and pull request also builds the `.dmg` on GitHub Actions (`Build mac
 - **Week/Day grid:** sticky frosted day headers, a live red current-time line, and an all-day lane that collapses when it gets crowded.
 - **Create:** drag across time slots for an elastic ghost event that snaps to 15 minutes with a live time readout, or double-click for a one-hour event. Releasing opens an anchored glass popover.
 - **Edit:** click an event to edit title, location, calendar (animated colour dots), all-day, dates and times, and notes, or delete it.
+- **Repeat:** set an event to repeat every day, week, 2 weeks, month or year, with an optional end date. Edits and drags apply to the whole series; **Delete This** removes a single occurrence and **Delete All** removes the series.
 - **Move & resize:** drag events to another day or time, or drag the bottom edge to change the duration. Events lift with a shadow while dragging and spring into place. In Month view you can drag events between days.
 - **Search:** expanding search field with live results; pick one to jump to it.
 - **Light/Dark mode** toggle (the Mac window's vibrancy follows it).

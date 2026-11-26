@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Repeat } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type React from 'react';
 import { CAL, pillStyle } from '../lib/calendars';
@@ -499,7 +499,10 @@ export function TimeGrid({ days, events, now, dark, selectedId, newCalendar, onC
                     </div>
                   ) : (
                     <>
-                      <div className="line-clamp-2 font-semibold">{ev.title}</div>
+                      <div className="line-clamp-2 font-semibold">
+                        {ev.title}
+                        {ev.seriesId && <Repeat size={9} strokeWidth={2} className="ml-1 inline align-[-1px] opacity-70" />}
+                      </div>
                       <div className="truncate tabular-nums opacity-80">
                         {lifted ? fmtTimeRange(start, new Date(ev.end)) : fmtTime(start)}
                       </div>

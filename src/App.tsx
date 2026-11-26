@@ -10,6 +10,7 @@ import { CALENDARS } from './lib/calendars';
 import { desktop, isMacApp } from './lib/desktop';
 import { addDays, addMonths, dayKey, isSameDay, MONTHS, startOfDay, startOfMonth, startOfWeek } from './lib/date';
 import { SPRING, SPRING_SOFT } from './lib/motion';
+import { expandEvents, seriesIdOf } from './lib/recurrence';
 import { seedEvents } from './lib/seed';
 import type { CalendarId, CalEvent, Rect, ViewMode } from './lib/types';
 
@@ -79,13 +80,23 @@ export default function App() {
   useEffect(() => save('view', view), [view]);
 
   const visible = useMemo(() => events.filter((e) => enabled[e.calendar]), [events, enabled]);
+  // Occurrences for the period on screen (repeating events expanded).
+  const shown = useMemo(() => {
+    const from = addDays(periodStart(view, cursor), -7).getTime();
+    const to = view === 'year'
+      ? new Date(cursor.getFullYear() + 1, 0, 8).getTime()
+      : addDays(periodStart(view, cursor), 50).getTime();
+    return expandEvents(visible, from, to);
+  }, [visible, view, cursor]);
   const eventDays = useMemo(() => {
     const s = new Set<string>();
-    for (const e of visible) {
+    const y = cursor.getFullYear();
+    const yearly = expandEvents(visible, new Date(y - 1, 11, 1).getTime(), new Date(y + 1, 1, 1).getTime());
+    for (const e of yearly) {
       for (let d = startOfDay(new Date(e.start)); d.getTime() < e.end; d = addDays(d, 1)) s.add(dayKey(d));
     }
     return s;
-  }, [visible]);
+  }, [visible, cursor.getFullYear()]);
   const counts = useMemo(() => {
     const c = Object.fromEntries(CALENDARS.map((x) => [x.id, 0])) as Record<CalendarId, number>;
     events.forEach((e) => c[e.calendar]++);
@@ -138,14 +149,43 @@ export default function App() {
     [enabled, lastCalendar],
   );
 
+  /**
+   * Update an event. `id` may be one occurrence of a repeating series: time changes then
+   * shift the whole series by the same amount, and other fields apply to the series.
+   */
   const updateEvent = useCallback((id: string, patch: Partial<CalEvent>) => {
-    setEvents((list) => list.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+    const sid = seriesIdOf(id);
+    const occ = id.includes('@') ? Number(id.split('@')[1]) : null;
+    let newId = id;
+    setEvents((list) =>
+      list.map((e) => {
+        if (e.id !== sid) return e;
+        if (patch.start == null && patch.end == null) return { ...e, ...patch };
+        const instStart = occ ?? e.start;
+        const instEnd = instStart + (e.end - e.start);
+        const ns = patch.start ?? instStart;
+        const ne = patch.end ?? instEnd;
+        const start = e.start + (ns - instStart);
+        if (occ != null) newId = `${sid}@${ns}`;
+        return { ...e, ...patch, start, end: start + (ne - ns), exdates: e.exdates?.map((x) => x + (ns - instStart)) };
+      }),
+    );
+    if (newId !== id) setPopover((p) => (p && p.id === id ? { ...p, id: newId } : p));
     if (patch.calendar) setLastCalendar(patch.calendar);
   }, []);
 
-  const deleteEvent = useCallback((id: string) => {
+  /** Delete a whole event/series, or just one occurrence of a repeating series. */
+  const deleteEvent = useCallback((id: string, scope: 'one' | 'all' = 'all') => {
     setPopover(null);
-    setEvents((list) => list.filter((e) => e.id !== id));
+    const sid = seriesIdOf(id);
+    if (scope === 'all') return setEvents((list) => list.filter((e) => e.id !== sid));
+    setEvents((list) =>
+      list.map((e) => {
+        if (e.id !== sid) return e;
+        const occ = id.includes('@') ? Number(id.split('@')[1]) : e.start;
+        return { ...e, exdates: [...(e.exdates ?? []), occ] };
+      }),
+    );
   }, []);
 
   const closePopover = useCallback(() => {
@@ -222,11 +262,11 @@ export default function App() {
   }, [view, cursor]);
 
   const layerKey = `${view}:${periodStart(view, cursor).getTime()}`;
-  const popEvent = popover ? events.find((e) => e.id === popover.id) : undefined;
+  const popEvent = popover ? shown.find((e) => e.id === popover.id) ?? events.find((e) => e.id === popover.id) : undefined;
   const selectedId = popEvent?.id ?? null;
 
   const timeGridProps = {
-    events: visible, now, dark, selectedId, newCalendar: lastCalendar,
+    events: shown, now, dark, selectedId, newCalendar: lastCalendar,
     onCreate: createEvent,
     onOpen: openEvent,
     onMove: (id: string, start: number, end: number) => updateEvent(id, { start, end }),
@@ -286,7 +326,7 @@ export default function App() {
                 {view === 'month' && (
                   <MonthView
                     month={startOfMonth(cursor)}
-                    events={visible}
+                    events={shown}
                     now={now}
                     dark={dark}
                     selectedId={selectedId}
@@ -296,7 +336,7 @@ export default function App() {
                       createEvent(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 9), new Date(d.getFullYear(), d.getMonth(), d.getDate(), 10), false, anchor)
                     }
                     onMoveToDay={(id, d) => {
-                      const ev = events.find((e) => e.id === id);
+                      const ev = shown.find((e) => e.id === id);
                       if (!ev) return;
                       const s = new Date(ev.start);
                       const ns = new Date(d.getFullYear(), d.getMonth(), d.getDate(), s.getHours(), s.getMinutes()).getTime();
@@ -326,7 +366,7 @@ export default function App() {
               anchor={popover.anchor}
               isNew={popover.isNew}
               onChange={(patch) => updateEvent(popover.id, patch)}
-              onDelete={() => deleteEvent(popover.id)}
+              onDelete={(scope) => deleteEvent(popover.id, scope)}
               onClose={closePopover}
             />
           )}

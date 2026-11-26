@@ -1,17 +1,18 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlignLeft, Clock, MapPin, Trash2 } from 'lucide-react';
+import { AlignLeft, Clock, MapPin, Repeat, Trash2 } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CALENDARS, CAL } from '../lib/calendars';
 import { addDays, startOfDay, toDateInput, toTimeInput } from '../lib/date';
 import { SPRING, TAP } from '../lib/motion';
-import type { CalEvent, Rect } from '../lib/types';
+import { REPEAT_OPTIONS } from '../lib/recurrence';
+import type { CalEvent, Rect, RepeatRule } from '../lib/types';
 
 interface Props {
   event: CalEvent;
   anchor: Rect;
   isNew: boolean;
   onChange: (patch: Partial<CalEvent>) => void;
-  onDelete: () => void;
+  onDelete: (scope: 'one' | 'all') => void;
   onClose: () => void;
 }
 
@@ -34,8 +35,14 @@ export function EventPopover({ event, anchor, isNew, onChange, onDelete, onClose
   const [h, setH] = useState(420);
 
   useLayoutEffect(() => {
-    if (ref.current) setH(ref.current.offsetHeight);
-  }, [event.allDay]);
+    const el = ref.current;
+    if (!el) return;
+    setH(el.offsetHeight);
+    // Re-place the card whenever its content grows or shrinks.
+    const ro = new ResizeObserver(() => setH(el.offsetHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Keep latest callbacks in a ref so listeners are bound once per popover.
   const cb = useRef({ onClose, onDelete });
@@ -48,7 +55,7 @@ export function EventPopover({ event, anchor, isNew, onChange, onDelete, onClose
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') cb.current.onClose();
-      if ((e.key === 'Backspace' || e.key === 'Delete') && !(e.target as HTMLElement).closest('input,textarea')) cb.current.onDelete();
+      if ((e.key === 'Backspace' || e.key === 'Delete') && !(e.target as HTMLElement).closest('input,textarea,select')) cb.current.onDelete('one');
     };
     // defer so the click that opened us doesn't close us
     const t = setTimeout(() => window.addEventListener('pointerdown', onDown), 0);
@@ -83,6 +90,7 @@ export function EventPopover({ event, anchor, isNew, onChange, onDelete, onClose
   const e = new Date(event.end);
   const cal = CAL[event.calendar];
   const lastDay = event.allDay ? addDays(e, -1) : e;
+  const repeating = !!event.repeat && event.repeat !== 'none';
 
   return (
     <motion.div
@@ -266,6 +274,54 @@ export function EventPopover({ event, anchor, isNew, onChange, onDelete, onClose
         ) : <span />}
       </div>
 
+      {/* Repeat */}
+      <div className="mt-3 grid grid-cols-[1fr_auto] items-center gap-x-2 gap-y-1.5 text-[13px]">
+        <label htmlFor="repeat-rule" className="flex items-center gap-2">
+          <Repeat size={15} strokeWidth={1.5} className="text-neutral-400" /> Repeat
+        </label>
+        <select
+          id="repeat-rule"
+          value={event.repeat ?? 'none'}
+          onChange={(ev) => {
+            const repeat = ev.target.value as RepeatRule;
+            onChange({ repeat, ...(repeat === 'none' ? { repeatUntil: undefined, exdates: undefined } : {}) });
+          }}
+          className="field w-[150px] cursor-default"
+        >
+          {REPEAT_OPTIONS.map((o) => (
+            <option key={o.id} value={o.id}>{o.label}</option>
+          ))}
+        </select>
+        <AnimatePresence initial={false}>
+          {repeating && (
+            <motion.div
+              key="until"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={SPRING}
+              className="col-span-2 grid grid-cols-[1fr_auto] items-center gap-x-2 overflow-hidden"
+            >
+              <label htmlFor="repeat-until" className="pl-[23px] text-neutral-500">End Repeat</label>
+              <input
+                id="repeat-until"
+                type="date"
+                value={event.repeatUntil != null ? toDateInput(new Date(event.repeatUntil)) : ''}
+                min={toDateInput(s)}
+                onChange={(ev) => onChange({ repeatUntil: ev.target.value ? parseDate(ev.target.value).getTime() : undefined })}
+                className="field w-[150px] tabular-nums"
+                title="Leave empty to repeat forever"
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+      {repeating && (
+        <p className="mt-1.5 text-[11px] leading-snug text-neutral-500">
+          Changes apply to every event in this series.
+        </p>
+      )}
+
       <div className="hairline my-3 border-t" />
 
       <label className="flex items-start gap-2">
@@ -280,14 +336,35 @@ export function EventPopover({ event, anchor, isNew, onChange, onDelete, onClose
       </label>
 
       <div className="mt-3.5 flex items-center justify-between">
-        <motion.button
-          type="button"
-          whileTap={TAP}
-          onClick={onDelete}
-          className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[13px] font-medium text-[#FF3B30] transition-colors hover:bg-[#FF3B30]/10"
-        >
-          <Trash2 size={14} strokeWidth={1.5} /> Delete Event
-        </motion.button>
+        {repeating ? (
+          <div className="flex items-center">
+            <motion.button
+              type="button"
+              whileTap={TAP}
+              onClick={() => onDelete('one')}
+              className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[13px] font-medium text-[#FF3B30] transition-colors hover:bg-[#FF3B30]/10"
+            >
+              <Trash2 size={14} strokeWidth={1.5} /> Delete This
+            </motion.button>
+            <motion.button
+              type="button"
+              whileTap={TAP}
+              onClick={() => onDelete('all')}
+              className="rounded-md px-2 py-1.5 text-[13px] font-medium text-[#FF3B30] transition-colors hover:bg-[#FF3B30]/10"
+            >
+              Delete All
+            </motion.button>
+          </div>
+        ) : (
+          <motion.button
+            type="button"
+            whileTap={TAP}
+            onClick={() => onDelete('all')}
+            className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[13px] font-medium text-[#FF3B30] transition-colors hover:bg-[#FF3B30]/10"
+          >
+            <Trash2 size={14} strokeWidth={1.5} /> Delete Event
+          </motion.button>
+        )}
         <motion.button
           type="button"
           whileTap={TAP}
