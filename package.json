@@ -75,6 +75,7 @@
     },
     "dmg": {
       "title": "Glass Calendar"
-    }
+    },
+    "afterPack": "build/adhoc-sign.cjs"
   }
 }

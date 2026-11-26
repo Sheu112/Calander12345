@@ -18,7 +18,13 @@ npm run dev:web    # or just the web version at http://localhost:5173
 npm run dist       # writes Glass Calendar .dmg and .zip files to release/
 ```
 
-The build isn't signed with an Apple Developer ID, so the first time you open it, right-click the app in Finder and choose **Open** (or allow it in System Settings → Privacy & Security).
+The build is ad-hoc signed rather than signed with an Apple Developer ID. The first time you open it, right-click the app in Finder and choose **Open** (or click **Open Anyway** in System Settings → Privacy & Security).
+
+If macOS ever says the app "is damaged and can't be opened", that's the download quarantine flag. Clear it with:
+
+```bash
+xattr -cr "/Applications/Glass Calendar.app"
+```
 
 Every push and pull request also builds the `.dmg` on GitHub Actions (`Build macOS app` workflow); download it from the run's **Artifacts** section.
 
