@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root { height: 100%; }
+html { color-scheme: light; }
+html.dark { color-scheme: dark; }
+body {
+  margin: 0;
+  background: #ffffff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+html.dark body { background: #1C1C1E; }
+
+@layer components {
+  .glass {
+    @apply backdrop-blur-xl bg-white/75 dark:bg-[#2C2C2E]/75;
+  }
+  .hairline { @apply border-black/[0.08] dark:border-white/[0.1]; }
+  .field {
+    @apply w-full rounded-md bg-black/[0.04] dark:bg-white/[0.07] px-2 py-1.5 text-[13px] outline-none
+      ring-0 focus:bg-black/[0.06] dark:focus:bg-white/[0.1] focus:ring-2 focus:ring-[#007AFF]/40 transition-colors;
+  }
+}
+
+/* thin, quiet scrollbars */
+.scroll-quiet { scrollbar-width: thin; scrollbar-color: rgba(127,127,127,.35) transparent; }
+.scroll-quiet::-webkit-scrollbar { width: 8px; height: 8px; }
+.scroll-quiet::-webkit-scrollbar-thumb { background: rgba(127,127,127,.3); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="date"]::-webkit-calendar-picker-indicator { opacity: .5; }
+html.dark input[type="time"]::-webkit-calendar-picker-indicator,
+html.dark input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+
+/* ---- Desktop (Electron) ---- */
+/* Let the native macOS sidebar vibrancy show through the frosted sidebar. */
+html.mac body { background: transparent !important; }
+html.mac .wallpaper { display: none; }
+html.desktop .titlebar-drag { -webkit-app-region: drag; }
+html.desktop .titlebar-drag button,
+html.desktop .titlebar-drag input,
+html.desktop .titlebar-drag [role="tab"] { -webkit-app-region: no-drag; }
+html.mac .sidebar-inner { padding-top: 46px; }
+html.desktop, html.desktop body { user-select: none; }
+html.desktop input, html.desktop textarea { user-select: text; }
