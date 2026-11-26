@@ -1,0 +1,80 @@
+{
+  "name": "glass-calendar",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n web,app -c blue,magenta \"vite --port 5173 --strictPort\" \"wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\"",
+    "dev:web": "vite",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && vite build",
+    "build:single": "vite build --mode single",
+    "start": "npm run build && electron .",
+    "dist": "npm run build && electron-builder --mac",
+    "dist:dir": "npm run build && electron-builder --mac --dir"
+  },
+  "dependencies": {
+    "framer-motion": "11.18.2",
+    "lucide-react": "0.460.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "@vitejs/plugin-react": "4.4.1",
+    "autoprefixer": "10.4.20",
+    "postcss": "8.4.49",
+    "tailwindcss": "3.4.17",
+    "typescript": "5.6.3",
+    "vite": "6.3.5",
+    "vite-plugin-singlefile": "2.2.0",
+    "electron": "38.8.6",
+    "electron-builder": "25.1.8",
+    "concurrently": "9.1.2",
+    "wait-on": "8.0.3",
+    "cross-env": "7.0.3"
+  },
+  "productName": "Glass Calendar",
+  "description": "A spring-animated, frosted-glass calendar for macOS.",
+  "main": "electron/main.cjs",
+  "author": "Newry",
+  "build": {
+    "appId": "com.sheu112.glasscalendar",
+    "productName": "Glass Calendar",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "darkModeSupport": true,
+      "identity": null
+    },
+    "dmg": {
+      "title": "Glass Calendar"
+    }
+  }
+}
